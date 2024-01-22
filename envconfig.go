@@ -252,6 +252,7 @@ func Process(prefix string, spec interface{}) (ProcessInfos, error) {
 				Err:       err,
 			}
 		}
+		proccessInfo[info.Key] = pI
 	}
 
 	return proccessInfo, err
