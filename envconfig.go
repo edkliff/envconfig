@@ -180,12 +180,39 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
+type ProcessInfo struct {
+	IsDefault bool
+	Default   string
+	Current   string
+}
+
+type ProcessInfos map[string]ProcessInfo
+
+func (pi ProcessInfos) String() string {
+	s := []string{"Config:"}
+	for k, v := range pi {
+		defstring := "is default"
+		if !v.IsDefault {
+			defstring = "not default"
+		}
+		def := v.Default
+		if def == "" {
+			def = "default not defined"
+		}
+		str := fmt.Sprintf("%s: %s(%s - %s)", k, v.Current, defstring, def)
+		s = append(s, str)
+	}
+	fin := strings.Join(s, "\n")
+	return fin
+}
+
 // Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) error {
+func Process(prefix string, spec interface{}) (ProcessInfos, error) {
+	proccessInfo := make(map[string]ProcessInfo)
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
-
+		pI := ProcessInfo{}
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
@@ -197,8 +224,11 @@ func Process(prefix string, spec interface{}) error {
 
 		def := info.Tags.Get("default")
 		if def != "" && !ok {
+			pI.IsDefault = true
 			value = def
 		}
+		pI.Current = value
+		pI.Default = def
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
@@ -207,14 +237,14 @@ func Process(prefix string, spec interface{}) error {
 				if info.Alt != "" {
 					key = info.Alt
 				}
-				return fmt.Errorf("required key %s missing value", key)
+				return proccessInfo, fmt.Errorf("required key %s missing value", key)
 			}
 			continue
 		}
 
 		err = processField(value, info.Field)
 		if err != nil {
-			return &ParseError{
+			return proccessInfo, &ParseError{
 				KeyName:   info.Key,
 				FieldName: info.Name,
 				TypeName:  info.Field.Type().String(),
@@ -224,12 +254,12 @@ func Process(prefix string, spec interface{}) error {
 		}
 	}
 
-	return err
+	return proccessInfo, err
 }
 
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
-	if err := Process(prefix, spec); err != nil {
+	if _, err := Process(prefix, spec); err != nil {
 		panic(err)
 	}
 }
