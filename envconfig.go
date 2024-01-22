@@ -197,7 +197,7 @@ func (pi ProcessInfos) String() string {
 		}
 		def := v.Default
 		if def == "" {
-			def = "default not defined"
+			def = "default is not defined"
 		}
 		str := fmt.Sprintf("%s: %s(%s - %s)", k, v.Current, defstring, def)
 		s = append(s, str)
