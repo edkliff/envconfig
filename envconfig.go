@@ -180,39 +180,16 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
-type ProcessInfo struct {
-	IsDefault bool
-	Default   string
-	Current   string
-}
-
-type ProcessInfos map[string]ProcessInfo
-
-func (pi ProcessInfos) String() string {
+func String(config any) string {
 	s := []string{"Config:"}
-	for k, v := range pi {
-		defstring := "is default"
-		if !v.IsDefault {
-			defstring = "not default"
-		}
-		def := v.Default
-		if def == "" {
-			def = "default is not defined"
-		}
-		str := fmt.Sprintf("%s: %s(%s - %s)", k, v.Current, defstring, def)
-		s = append(s, str)
-	}
-	fin := strings.Join(s, "\n")
-	return fin
+	return strings.Join(s, "\n")
 }
 
 // Process populates the specified struct based on environment variables
-func Process(prefix string, spec interface{}) (ProcessInfos, error) {
-	proccessInfo := make(map[string]ProcessInfo)
+func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
 
 	for _, info := range infos {
-		pI := ProcessInfo{}
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
 		// and an unset value. `os.LookupEnv` is preferred to `syscall.Getenv`,
 		// but it is only available in go1.5 or newer. We're using Go build tags
@@ -224,11 +201,8 @@ func Process(prefix string, spec interface{}) (ProcessInfos, error) {
 
 		def := info.Tags.Get("default")
 		if def != "" && !ok {
-			pI.IsDefault = true
 			value = def
 		}
-		pI.Current = value
-		pI.Default = def
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
@@ -237,14 +211,14 @@ func Process(prefix string, spec interface{}) (ProcessInfos, error) {
 				if info.Alt != "" {
 					key = info.Alt
 				}
-				return proccessInfo, fmt.Errorf("required key %s missing value", key)
+				return fmt.Errorf("required key %s missing value", key)
 			}
 			continue
 		}
 
 		err = processField(value, info.Field)
 		if err != nil {
-			return proccessInfo, &ParseError{
+			return &ParseError{
 				KeyName:   info.Key,
 				FieldName: info.Name,
 				TypeName:  info.Field.Type().String(),
@@ -252,15 +226,14 @@ func Process(prefix string, spec interface{}) (ProcessInfos, error) {
 				Err:       err,
 			}
 		}
-		proccessInfo[info.Key] = pI
 	}
 
-	return proccessInfo, err
+	return err
 }
 
 // MustProcess is the same as Process but panics if an error occurs
 func MustProcess(prefix string, spec interface{}) {
-	if _, err := Process(prefix, spec); err != nil {
+	if err := Process(prefix, spec); err != nil {
 		panic(err)
 	}
 }

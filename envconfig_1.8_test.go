@@ -22,7 +22,7 @@ func TestParseURL(t *testing.T) {
 	os.Setenv("ENV_CONFIG_URLVALUE", "https://github.com/kelseyhightower/envconfig")
 	os.Setenv("ENV_CONFIG_URLPOINTER", "https://github.com/kelseyhightower/envconfig")
 
-	_, err := Process("env_config", &s)
+	err := Process("env_config", &s)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -47,7 +47,7 @@ func TestParseURLError(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_URLPOINTER", "http_://foo")
 
-	_, err := Process("env_config", &s)
+	err := Process("env_config", &s)
 
 	v, ok := err.(*ParseError)
 	if !ok {
