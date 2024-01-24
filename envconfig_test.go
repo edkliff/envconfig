@@ -221,17 +221,19 @@ func TestProcess(t *testing.T) {
 
 func TestPrintConfig(t *testing.T) {
 	test := struct {
-		Password  string        `envconfig:"ENV_CONFIG_PASSWORD" masking:"*"`
-		SQLString string        `envconfig:"ENV_CONFIG_SQLSTRING" masking:":.*@"`
-		String    string        `envconfig:"ENV_CONFIG_STRING" default:"string"`
-		Int       int           `envconfig:"ENV_CONFIG_INT" default:"1"`
-		Slice     []string      `envconfig:"ENV_CONFIG_SLICE"`
-		Duration  time.Duration `envconfig:"ENV_CONFIG_DURATION" default:"1m"`
+		Password  string        `envconfig:"PASSWORD" masking:"*"`
+		SQLString string        `envconfig:"SQLSTRING" masking:":.*@"`
+		String    string        `envconfig:"STRING" default:"string"`
+		Int       uint64        `envconfig:"INT" default:"1"`
+		Slice     []string      `envconfig:"SLICE"`
+		Bool      bool          `envconfig:"BOOL"`
+		Duration  time.Duration `envconfig:"DURATION" default:"1m"`
+		SplitTest string        `split_words:"true"`
 	}{}
 	os.Setenv("ENV_CONFIG_PASSWORD", "testPassword")
 	os.Setenv("ENV_CONFIG_SQLSTRING", "user:password@tcp(myqsl)somedb")
 	os.Setenv("ENV_CONFIG_STRING", "string")
-	os.Setenv("ENV_CONFIG_INT", "0")
+	os.Setenv("ENV_CONFIG_INT", "10")
 	os.Setenv("ENV_CONFIG_SLICE", "string1,string2")
 	os.Setenv("ENV_CONFIG_DURATION", "60s")
 	err := Process("env_config", &test)
@@ -239,7 +241,7 @@ func TestPrintConfig(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	t.Log(String(test))
+	t.Log(ToString("env_config", test))
 }
 
 func TestParseErrorBool(t *testing.T) {

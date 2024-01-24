@@ -180,8 +180,123 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 	return nil
 }
 
-func String(config any) string {
-	s := []string{"Config:"}
+type Value struct {
+	current   string
+	def       string
+	key       string
+	isDefault string
+}
+
+func ToString(prefix string, c any) string {
+	config := reflect.ValueOf(c)
+	if config.Kind() == reflect.Ptr {
+		config = config.Elem()
+	}
+	if config.Kind() != reflect.Struct {
+		return ""
+	}
+	typeOfConfig := config.Type()
+
+	s := make([]string, config.NumField()+1, config.NumField()+1)
+	s[0] = "Config:"
+	for i := 0; i < config.NumField(); i++ {
+		typeOfField := typeOfConfig.Field(i)
+		if isTrue(typeOfField.Tag.Get("ignored")) {
+			continue
+		}
+
+		field := config.Field(i)
+		if field.Kind() == reflect.Ptr {
+			continue
+		}
+		if !field.CanInterface() {
+			continue
+		}
+		value := Value{
+			current: "not defined",
+			def:     "default is not defined",
+			key:     "UNKNOWN_KEY",
+		}
+
+		key := typeOfField.Name
+		alt := strings.ToUpper(typeOfField.Tag.Get("envconfig"))
+		if isTrue(typeOfField.Tag.Get("split_words")) {
+			words := gatherRegexp.FindAllStringSubmatch(typeOfField.Name, -1)
+			if len(words) > 0 {
+				var name []string
+				for _, words := range words {
+					if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 {
+						name = append(name, m[1], m[2])
+					} else {
+						name = append(name, words[0])
+					}
+				}
+
+				key = strings.Join(name, "_")
+			}
+		}
+		if alt != "" {
+			key = alt
+		}
+		if prefix != "" {
+			key = fmt.Sprintf("%s_%s", prefix, key)
+		}
+		value.key = strings.ToUpper(key)
+		val := field.Interface()
+		valS := fmt.Sprintf("%v", val)
+		def := typeOfField.Tag.Get("default")
+		if def != "" {
+			isDefault := false
+			defString := "default"
+			switch val.(type) {
+			case string:
+				if val.(string) == def {
+					isDefault = true
+				}
+			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+				integV, err := strconv.Atoi(valS)
+				if err != nil {
+					continue
+				}
+				integD, err := strconv.Atoi(def)
+				if err != nil {
+					def = "PARSE_ERROR"
+				}
+				if integV == integD {
+					isDefault = true
+				}
+			case time.Duration:
+
+			default:
+
+			}
+			if !isDefault {
+				defString = fmt.Sprintf("not default, default is %s", def)
+			}
+			value.def = defString
+		}
+		value.current = valS
+
+		mask := typeOfField.Tag.Get("masking")
+		if mask != "" {
+			switch mask {
+			case "*":
+				value.current = "*******"
+				value.def = "*******"
+			default:
+				r, err := regexp.Compile(mask)
+				if err != nil {
+					continue
+				}
+				r.ReplaceAllString(value.current, "*******")
+				r.ReplaceAllString(value.def, "*******")
+
+			}
+		}
+
+		s[i+1] = fmt.Sprintf("%s: %s (%s)", value.key, value.current, value.def)
+	}
+
 	return strings.Join(s, "\n")
 }
 
