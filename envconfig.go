@@ -288,8 +288,8 @@ func ToString(prefix string, c any) string {
 				if err != nil {
 					continue
 				}
-				r.ReplaceAllString(value.current, "*******")
-				r.ReplaceAllString(value.def, "*******")
+				value.current = r.ReplaceAllString(value.current, "*******")
+				value.def = r.ReplaceAllString(value.def, "*******")
 
 			}
 		}
